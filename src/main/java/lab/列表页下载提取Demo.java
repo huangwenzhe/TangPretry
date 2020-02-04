@@ -21,6 +21,7 @@ public class 列表页下载提取Demo {
                     "class",
                     "typecont"
             );
+            System.out.println(elements);
 
             int count = 0;
             for (HtmlElement element : elements) {

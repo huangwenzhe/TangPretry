@@ -3,6 +3,7 @@ package lab;
 import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 
+//线程结束了会结束这个任务
 public class CountDownLatchDemo {
     private static class Job implements Runnable {
         private CountDownLatch countDownLatch;

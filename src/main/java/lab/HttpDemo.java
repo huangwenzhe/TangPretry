@@ -18,22 +18,28 @@ public class HttpDemo {
         webClient.getOptions().setJavaScriptEnabled(false);
         //关闭了浏览器的CSS执行引擎，不再执行网页中的css布局
         webClient.getOptions().setCssEnabled(false);
+
+        //行宫的url
         HtmlPage htmlPage = webClient.getPage("https://so.gushiwen.org/shiwenv_45c396367f59.aspx");
 
-        /*
-        System.out.println(htmlPage);
-     File file =new File("唐诗三百首\\列表页.html");
-     file.delete();
-     htmlPage.save(file);
+//
+//        System.out.println(htmlPage);
+//     File file =new File("唐诗三百首\\列表页.html");
+//     file.delete();
+//     htmlPage.save(file);
+
+
+        //解析列表页
 
      //  从html中提取我们需要的信息
-       HtmlElement body =  htmlPage.getBody();
-       List<HtmlElement>elements =  body.getElementsByAttribute("div","class","typecont");
-       /*
-       for(HtmlElement e :elements){
-           System.out.println(e);
-       }
-
+//       HtmlElement bodys =  htmlPage.getBody();
+//        System.out.println(bodys);
+//       List<HtmlElement>elements =  bodys.getElementsByAttribute("div","class","typecont");
+//
+//       for(HtmlElement e :elements){
+//           System.out.println(e);
+//       }
+/*
 
         HtmlElement divElement = elements.get(0);
        List<HtmlElement> aElement = divElement.getElementsByAttribute("a","target","_blank");
@@ -45,7 +51,7 @@ public class HttpDemo {
 
 
         HtmlElement body = htmlPage.getBody();
-         /*
+
             List<HtmlElement> elements = body.getElementsByAttribute(
                     "div",
                     "class",
@@ -57,12 +63,15 @@ public class HttpDemo {
             }
 
             System.out.println(elements.get(0).getTextContent().trim());
-             */
+
+
+
 
         // 标题
         {
             String xpath = "//div[@class='cont']/h1/text()";
-            Object o = body.getByXPath(xpath).get(0);DomText domText = (DomText)o;
+            Object o = body.getByXPath(xpath).get(0);
+            DomText domText = (DomText)o;
             System.out.println(domText.asText());
         }
         {
