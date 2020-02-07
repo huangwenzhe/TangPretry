@@ -10,6 +10,7 @@ import org.ansj.domain.Term;
 import org.ansj.splitWord.analysis.NlpAnalysis;
 
 import java.io.IOException;
+import java.io.PrintStream;
 import java.io.UnsupportedEncodingException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -17,6 +18,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 
@@ -52,6 +54,7 @@ public class Request {
                 HtmlPage p = webClient.getPage(urls);
                 HtmlElement bodys = p.getBody();
 
+                StringBuffer words = new StringBuffer();
                 //标题
                 String title;
                 {
@@ -61,8 +64,7 @@ public class Request {
 
                     System.out.println(domText.asText());
                     title = domText.asText().trim();
-                    divids(domText.asText().trim());
-
+                    words.append(divids(domText.asText().trim())).append(",");
                 }
                 //朝代
                 String dy;
@@ -88,27 +90,29 @@ public class Request {
                     Object o = bodys.getByXPath(xpath).get(0);
                     HtmlElement e1 = (HtmlElement)o;
                     String ss = e1.getTextContent();
-                     sha256 =  caculateSha256(ss);
+                     sha256 =  caculateSha256(ss.trim());
 
                      content = e1.getTextContent().trim();
                     System.out.println(sha256);
                     System.out.println(e1.getTextContent().trim());
 
-                    divids(ss.trim());
+                    words.append(divids(ss.trim()));
                 }
-                插入诗词(sha256,dy,title,author,content);
+                插入诗词(sha256,dy,title,author,content,words.toString());
                 count ++;
             }
         }
         System.out.println(count);
     }
-    static     List<List<Term>>lists = new ArrayList<>();
-    private static List<Term> divids(String s) {
+
+    private static String divids(String s) {
+        StringBuffer str = new StringBuffer();
         List<Term> termList = NlpAnalysis.parse(s).getTerms();
         for (Term term : termList) {
+            str.append(term.getRealName()).append(",");
             System.out.println(term.getNatureStr() + ":  " + term.getRealName());
         }
-        return termList;
+        return str.toString();
     }
 
     private static String caculateSha256(String ss) throws NoSuchAlgorithmException, UnsupportedEncodingException {
@@ -118,11 +122,13 @@ public class Request {
         byte[]result = messageDigest.digest();
         StringBuffer s = new StringBuffer();
         for (byte b : result){
-            s.append(b);
+            System.out.printf("%02x ",b);
+            s.append(String.format("%02x",b));
         }
+        System.out.println(s);
         return s.toString();
     }
-    private static void 插入诗词(String sha256, String dy, String title, String author, String s) throws SQLException {
+    private static void 插入诗词(String sha256, String dy, String title, String author, String s,String words) throws SQLException {
         MysqlConnectionPoolDataSource dataSource = new MysqlConnectionPoolDataSource();
         dataSource.setServerName("127.0.0.1");
         dataSource.setPort(3306);
@@ -143,7 +149,7 @@ public class Request {
                 statement.setString(3,title);
                 statement.setString(4,author);
                 statement.setString(5,s);
-                statement.setString(6,"!2");
+                statement.setString(6,words);
                 statement.executeUpdate();
             }
 
