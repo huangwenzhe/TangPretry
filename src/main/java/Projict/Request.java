@@ -10,15 +10,12 @@ import org.ansj.domain.Term;
 import org.ansj.splitWord.analysis.NlpAnalysis;
 
 import java.io.IOException;
-import java.io.PrintStream;
 import java.io.UnsupportedEncodingException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 
@@ -39,13 +36,12 @@ public class Request {
         int count =0 ;
 
         for(HtmlElement element : list){
-            list = new ArrayList<>();
 
             List <HtmlElement>aelement = element.getElementsByTagName("a");
             for(HtmlElement e : aelement){
                 //每个古诗的链接
-         //       System.out.println(e.getAttribute("href"));              //即获得每首古诗的题目
-           //     System.out.println(e.getTextContent());
+                // System.out.println(e.getAttribute("href"));
+                //  System.out.println(e.getTextContent());
 
                 String s = e.getAttribute("href");
                 System.out.println(s);
@@ -128,6 +124,7 @@ public class Request {
         System.out.println(s);
         return s.toString();
     }
+
     private static void 插入诗词(String sha256, String dy, String title, String author, String s,String words) throws SQLException {
         MysqlConnectionPoolDataSource dataSource = new MysqlConnectionPoolDataSource();
         dataSource.setServerName("127.0.0.1");
@@ -152,8 +149,6 @@ public class Request {
                 statement.setString(6,words);
                 statement.executeUpdate();
             }
-
         }
-
     }
 }
