@@ -9,123 +9,120 @@ import com.mysql.jdbc.jdbc2.optional.MysqlConnectionPoolDataSource;
 import org.ansj.domain.Term;
 import org.ansj.splitWord.analysis.NlpAnalysis;
 
+import javax.sql.DataSource;
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
-import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 
 public class Request {
-    public static void main(String[] args) throws IOException, NoSuchAlgorithmException, SQLException {
+    public static class  Job implements Runnable{
+        private  String url;
+        private  MessageDigest messageDigest;
+        private DataSource dataSource;
+
+        public Job(String url, MessageDigest messageDigest, DataSource dataSource) {
+            this.url = url;
+            this.messageDigest = messageDigest;
+            this.dataSource = dataSource;
+        }
+
+        @Override
+        public void run() {
+                WebClient webClient  = new WebClient(BrowserVersion.CHROME);
+                webClient.getOptions().setJavaScriptEnabled(false);
+                webClient.getOptions().setCssEnabled(false);
+
+                String divs1;
+                String divs2;
+            try {
+                HtmlPage page = webClient.getPage(url);
+                String xpath;
+                DomText domText;
+
+                xpath = "//div[@class='cont']/h1/text()";
+                domText = (DomText) page.getBody().getByXPath(xpath).get(0);
+                String title = domText.asText();
+                divs1 = divids(title);
+
+                xpath = "//div[@class='cont']/p[@class='source']/a[1]/text()";
+                domText = (DomText) page.getBody().getByXPath(xpath).get(0);
+                String dynastry = domText.asText();
+
+
+                xpath = "//div[@class='cont']/p[@class='source']/a[2]/text()";
+                domText = (DomText) page.getBody().getByXPath(xpath).get(0);
+                String author = domText.asText();
+
+                xpath = "//div[@class='cont']/div[@class='contson']";
+                HtmlElement element = (HtmlElement)page.getBody().getByXPath(xpath).get(0);
+                String text = element.asText().trim();
+                divs2 = divids(text);
+
+                String s = title + text;
+
+                //计算sha256
+                byte[]bytes = s.getBytes("UTF-8");
+                messageDigest.update(bytes);
+                byte[]result = messageDigest.digest();
+                StringBuffer ss= new StringBuffer();
+                for (byte b : result){
+                    ss.append(String.format("%02x",b));
+                }
+
+
+                //计算分词
+                String div = divs1 + divs2;
+
+                //插入数据库
+                try (Connection connection = dataSource.getConnection()){
+                    String sql =  "INSERT INTO tangpoetry " +
+                            "(sha256, dynasty, title, author, " +
+                            "content,words) " +
+                            "VALUES (?,?,?, ?, ?, ?)";
+                    try (PreparedStatement statement = connection.prepareStatement(sql)){
+                        statement.setString(1,ss.toString());
+                        statement.setString(2,dynastry);
+                        statement.setString(3,title);
+                        statement.setString(4,author);
+                        statement.setString(5,text);
+                        statement.setString(6,div);
+                        statement.executeUpdate();
+                    }
+                }
+
+            } catch (Exception e1) {
+                e1.printStackTrace();
+            }
+        }
+
+        }
+    public static void main(String[] args) throws IOException, NoSuchAlgorithmException, InterruptedException {
+        ExecutorService service = Executors.newFixedThreadPool(30);
+
         WebClient webClient = new WebClient(BrowserVersion.CHROME);
         webClient.getOptions().setJavaScriptEnabled(false);
         webClient.getOptions().setCssEnabled(false);
         String url = "https://so.gushiwen.org/gushi/tangshi.aspx";
-        HtmlPage page = webClient.getPage(url);
-        HtmlElement body =page.getBody();
-        List<HtmlElement> list = body.getElementsByAttribute(
-                "div",
-                "class",
-                "typecont"
-        );
-
-        int count =0 ;
-
-        for(HtmlElement element : list){
-
-            List <HtmlElement>aelement = element.getElementsByTagName("a");
-            for(HtmlElement e : aelement){
-                //每个古诗的链接
-                // System.out.println(e.getAttribute("href"));
-                //  System.out.println(e.getTextContent());
-
-                String s = e.getAttribute("href");
-                System.out.println(s);
-
-                String urls = "https://so.gushiwen.org"+s;
-                HtmlPage p = webClient.getPage(urls);
-                HtmlElement bodys = p.getBody();
-
-                StringBuffer words = new StringBuffer();
-                //标题
-                String title;
-                {
-                    String path = "//div[@class='cont']/h1/text()";
-                    Object o =  bodys.getByXPath(path).get(0);
-                    DomText domText = (DomText)o;
-
-                    System.out.println(domText.asText());
-                    title = domText.asText().trim();
-                    words.append(divids(domText.asText().trim())).append(",");
+        List<String> detilUrlList =  new ArrayList<>();
+        {
+            HtmlPage page = webClient.getPage(url);
+            List<HtmlElement> list = page.getBody().getElementsByAttribute("div","class","typecont");
+            for(HtmlElement element : list){
+                List<HtmlElement> alement = element.getElementsByTagName("a");
+                for(HtmlElement e : alement){
+                    String detilUrl = e.getAttribute("href");
+                    detilUrlList.add("https://so.gushiwen.org"+detilUrl);
                 }
-                //朝代
-                String dy;
-                {
-                    String xpath = "//div[@class='cont']/p[@class='source']/a[1]/text()";
-                    Object o = bodys.getByXPath(xpath).get(0);DomText domText = (DomText)o;
-                    dy=domText.asText().trim();
-                    System.out.println(domText.asText());
-                }
-                //作者
-                String author;
-                {
-                    String xpath = "//div[@class='cont']/p[@class='source']/a[2]/text()";
-                    Object o = bodys.getByXPath(xpath).get(0);DomText domText = (DomText)o;
-                    author = domText.asText().trim();
-                    System.out.println(domText.asText());
-                }
-                //内容
-                String sha256 ;
-                String content;
-                {
-                    String xpath = "//div[@class='cont']/div[@class='contson']";
-                    Object o = bodys.getByXPath(xpath).get(0);
-                    HtmlElement e1 = (HtmlElement)o;
-                    String ss = e1.getTextContent();
-                     sha256 =  caculateSha256(ss.trim());
-
-                     content = e1.getTextContent().trim();
-                    System.out.println(sha256);
-                    System.out.println(e1.getTextContent().trim());
-
-                    words.append(divids(ss.trim()));
-                }
-                插入诗词(sha256,dy,title,author,content,words.toString());
-                count ++;
             }
         }
-        System.out.println(count);
-    }
-
-    private static String divids(String s) {
-        StringBuffer str = new StringBuffer();
-        List<Term> termList = NlpAnalysis.parse(s).getTerms();
-        for (Term term : termList) {
-            str.append(term.getRealName()).append(",");
-            System.out.println(term.getNatureStr() + ":  " + term.getRealName());
-        }
-        return str.toString();
-    }
-
-    private static String caculateSha256(String ss) throws NoSuchAlgorithmException, UnsupportedEncodingException {
-        MessageDigest messageDigest = MessageDigest.getInstance("SHA-256");
-        byte[]bytes = ss.getBytes("UTF-8");
-        messageDigest.update(bytes);
-        byte[]result = messageDigest.digest();
-        StringBuffer s = new StringBuffer();
-        for (byte b : result){
-            System.out.printf("%02x ",b);
-            s.append(String.format("%02x",b));
-        }
-        System.out.println(s);
-        return s.toString();
-    }
-
-    private static void 插入诗词(String sha256, String dy, String title, String author, String s,String words) throws SQLException {
         MysqlConnectionPoolDataSource dataSource = new MysqlConnectionPoolDataSource();
         dataSource.setServerName("127.0.0.1");
         dataSource.setPort(3306);
@@ -135,20 +132,31 @@ public class Request {
         dataSource.setUseSSL(false);
         dataSource.setCharacterEncoding("UTF8");
 
-        try (Connection connection = dataSource.getConnection()){
-            String sql =  "INSERT INTO tangpoetry " +
-                    "(sha256, dynasty, title, author, " +
-                    "content,words) " +
-                    "VALUES (?,?,?, ?, ?, ?)";
-            try (PreparedStatement statement = connection.prepareStatement(sql)){
-                statement.setString(1,sha256);
-                statement.setString(2,dy);
-                statement.setString(3,title);
-                statement.setString(4,author);
-                statement.setString(5,s);
-                statement.setString(6,words);
-                statement.executeUpdate();
-            }
+        MessageDigest messageDigest = MessageDigest.getInstance("SHA-256");
+        CountDownLatch countDownLatch = new CountDownLatch(detilUrlList.size());
+
+        for(String u : detilUrlList){
+            service.execute( new Job(u,messageDigest,dataSource));
         }
+        countDownLatch.await();
+        service.shutdown();
+
     }
+
+    private static String divids(String s) {
+        StringBuffer str = new StringBuffer();
+        List<Term> termList = NlpAnalysis.parse(s).getTerms();
+        for (Term term : termList) {
+            if(term.getNatureStr().equals("w")) {
+                continue;
+            }
+            if(term.getNatureStr().equals(null)){
+                continue;
+            }
+            str.append(term.getRealName()).append(",");
+            System.out.println(term.getNatureStr() + ":  " + term.getRealName());
+        }
+        return str.toString();
+    }
+
 }
