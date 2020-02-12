@@ -25,13 +25,12 @@ import java.util.concurrent.Executors;
 public class Request {
     public static class  Job implements Runnable{
         private  String url;
-        private  MessageDigest messageDigest;
         private DataSource dataSource;
-
-        public Job(String url, MessageDigest messageDigest, DataSource dataSource) {
+        private CountDownLatch countDownLatch;
+        public Job(String url, DataSource dataSource,CountDownLatch countDownLatch) {
             this.url = url;
-            this.messageDigest = messageDigest;
             this.dataSource = dataSource;
+            this.countDownLatch = countDownLatch;
         }
 
         @Override
@@ -43,6 +42,7 @@ public class Request {
                 String divs1;
                 String divs2;
             try {
+                MessageDigest messageDigest = MessageDigest.getInstance("SHA-256");
                 HtmlPage page = webClient.getPage(url);
                 String xpath;
                 DomText domText;
@@ -101,6 +101,8 @@ public class Request {
             } catch (Exception e1) {
                 e1.printStackTrace();
             }
+            //成功+失败的数目，不然数据会对不上
+            countDownLatch.countDown();
         }
 
         }
@@ -136,7 +138,7 @@ public class Request {
         CountDownLatch countDownLatch = new CountDownLatch(detilUrlList.size());
 
         for(String u : detilUrlList){
-            service.execute( new Job(u,messageDigest,dataSource));
+            service.execute( new Job(u,dataSource,countDownLatch));
         }
         countDownLatch.await();
         service.shutdown();
